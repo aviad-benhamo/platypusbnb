@@ -16,7 +16,7 @@ async function query(filterBy = {}) {
         const criteria = _buildCriteria(filterBy)
         const collection = await dbService.getCollection('user')
 
-        //create default admin user if none exists
+        // Create default admin user if none exists (Optional dev helper)
         if (await collection.countDocuments() === 0) {
             await _insertDefaultUser(collection)
         }
@@ -25,6 +25,7 @@ async function query(filterBy = {}) {
 
         users = users.map(user => {
             delete user.password
+            // user.createdAt = new ObjectId(user._id).getTimestamp()
             return user
         })
 
@@ -70,23 +71,22 @@ async function remove(userId) {
 
 async function add(user) {
     try {
-        const { username, password, fullname } = user
-        if (!username || !password || !fullname) throw new Error('Missing required fields')
-
-        const collection = await dbService.getCollection('user')
-
-        const userExist = await collection.findOne({ username })
-        if (userExist) throw new Error('Username already exists')
+        // Validate that there are no such user:
+        const existUser = await getByUsername(user.username)
+        if (existUser) throw new Error('Username already taken')
 
         const userToAdd = {
-            username,
-            password, // bcrypt
-            fullname,
+            username: user.username,
+            password: user.password, // This password should be hashed by auth.service before reaching here
+            fullname: user.fullname,
+            imgUrl: user.imgUrl || '',
             isAdmin: user.isAdmin || false,
-            score: user.score || 0,
+            score: 100,
+            wishlist: [],
             createdAt: Date.now()
         }
 
+        const collection = await dbService.getCollection('user')
         await collection.insertOne(userToAdd)
         return userToAdd
     } catch (err) {
@@ -97,19 +97,20 @@ async function add(user) {
 
 async function update(user) {
     try {
-        const userToSave = {
-            _id: new ObjectId(user._id),
-            fullname: user.fullname,
-            score: user.score
-        }
+        // Dynamic update - keep all fields sent from frontend except _id
+        const { _id, ...userToSave } = user
+
         const collection = await dbService.getCollection('user')
-        await collection.updateOne({ _id: userToSave._id }, { $set: userToSave })
-        return userToSave
+        await collection.updateOne({ _id: new ObjectId(_id) }, { $set: userToSave })
+
+        return user
     } catch (err) {
         logger.error(`cannot update user ${user._id}`, err)
         throw err
     }
 }
+
+// --- Private Functions ---
 
 function _buildCriteria(filterBy) {
     const criteria = {}
@@ -125,13 +126,13 @@ function _buildCriteria(filterBy) {
 
 async function _insertDefaultUser(collection) {
     const adminUser = {
-        fullname: 'Master Admin',
+        fullname: 'System Admin',
         username: 'admin',
-        password: '123',
+        password: 'admin', // Note: In real app, this should be hashed!
         isAdmin: true,
         score: 1000,
         createdAt: Date.now()
     }
     await collection.insertOne(adminUser)
-    logger.info('Created Default Admin User')
+    logger.info('Default admin user created')
 }
