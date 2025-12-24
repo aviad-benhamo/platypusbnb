@@ -29,7 +29,7 @@ async function query(filterBy = {}) {
 async function getById(stayId) {
     try {
         const collection = await dbService.getCollection('stay')
-        const stay = await collection.findOne({ _id: new ObjectId(stayId) })
+        const stay = await collection.findOne({ _id: _toObjectId(stayId) })
         return stay
     } catch (err) {
         logger.error(`while finding stay ${stayId}`, err)
@@ -40,7 +40,7 @@ async function getById(stayId) {
 async function remove(stayId) {
     try {
         const collection = await dbService.getCollection('stay')
-        await collection.deleteOne({ _id: new ObjectId(stayId) })
+        await collection.deleteOne({ _id: _toObjectId(stayId) })
     } catch (err) {
         logger.error(`cannot remove stay ${stayId}`, err)
         throw err
@@ -52,7 +52,7 @@ async function save(stay) {
         const collection = await dbService.getCollection('stay')
         if (stay._id) {
             const { _id, ...stayToSave } = stay
-            await collection.updateOne({ _id: new ObjectId(_id) }, { $set: stayToSave })
+            await collection.updateOne({ _id: _toObjectId(_id) }, { $set: stayToSave })
             return stay
         } else {
             stay.createdAt = Date.now()
@@ -71,7 +71,7 @@ async function addStayMsg(stayId, msg) {
     try {
         msg.id = utilService.makeId()
         const collection = await dbService.getCollection('stay')
-        await collection.updateOne({ _id: new ObjectId(stayId) }, { $push: { msgs: msg } })
+        await collection.updateOne({ _id: _toObjectId(stayId) }, { $push: { msgs: msg } })
         return msg
     } catch (err) {
         logger.error(`cannot add stay msg ${stayId}`, err)
@@ -82,7 +82,7 @@ async function addStayMsg(stayId, msg) {
 async function removeStayMsg(stayId, msgId) {
     try {
         const collection = await dbService.getCollection('stay')
-        await collection.updateOne({ _id: new ObjectId(stayId) }, { $pull: { msgs: { id: msgId } } })
+        await collection.updateOne({ _id: _toObjectId(stayId) }, { $pull: { msgs: { id: msgId } } })
         return msgId
     } catch (err) {
         logger.error(`cannot remove stay msg ${stayId}`, err)
@@ -90,10 +90,16 @@ async function removeStayMsg(stayId, msgId) {
     }
 }
 
+// --- Private Helper Functions ---
+
+// Creates an ObjectId if the id is valid, otherwise returns the string id
+function _toObjectId(id) {
+    return ObjectId.isValid(id) ? new ObjectId(id) : id
+}
+
 function _buildCriteria(filterBy) {
     const criteria = {}
 
-    // 1. Text Search (Name or Summary)
     if (filterBy.txt) {
         const regex = new RegExp(filterBy.txt, 'i')
         criteria.$or = [
@@ -102,40 +108,33 @@ function _buildCriteria(filterBy) {
         ]
     }
 
-    // 2. Location Search (City, Country logic)
     if (filterBy.loc) {
         const locParts = filterBy.loc.split(',')
         const cityRegex = new RegExp(locParts[0].trim(), 'i')
 
         if (locParts.length > 1) {
-            // If "City, Country" format is used
             const countryRegex = new RegExp(locParts[1].trim(), 'i')
             criteria['loc.city'] = { $regex: cityRegex }
             criteria['loc.country'] = { $regex: countryRegex }
         } else {
-            // If only City is provided
             criteria['loc.city'] = { $regex: cityRegex }
         }
     }
 
-    // 3. Guests (Capacity)
     if (filterBy.guests) {
         criteria.capacity = { $gte: filterBy.guests }
     }
 
-    // 4. Pets (Amenities check)
     if (filterBy.pets) {
         criteria.amenities = 'Pets allowed'
     }
 
-    // 5. Price Range
     if (filterBy.minPrice || filterBy.maxPrice) {
         criteria.price = {}
         if (filterBy.minPrice) criteria.price.$gte = filterBy.minPrice
         if (filterBy.maxPrice) criteria.price.$lte = filterBy.maxPrice
     }
 
-    // Filter by hostId
     if (filterBy.hostId) {
         criteria['host._id'] = filterBy.hostId
     }
@@ -145,7 +144,6 @@ function _buildCriteria(filterBy) {
 
 function _buildSortCriteria(filterBy) {
     const criteria = {}
-
     if (filterBy.sortBy === 'price') {
         criteria.price = 1
     } else {
