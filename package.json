@@ -1,0 +1,23 @@
+{
+    "name": "mistertoy-backend",
+    "version": "1.0.0",
+    "description": "mister toy project",
+    "main": "server.js",
+    "type": "module",
+    "scripts": {
+        "start": "nodemon --ignore \"./data\" server.js",
+        "server:dev": "nodemon server.js",
+        "server:prod": "set NODE_ENV=production&&node server.js"
+    },
+    "author": "Aviad Ben Hamo",
+    "license": "ISC",
+    "dependencies": {
+        "bcrypt": "^6.0.0",
+        "cookie-parser": "^1.4.7",
+        "cors": "^2.8.5",
+        "cryptr": "^6.4.0",
+        "dotenv": "^17.2.3",
+        "express": "^5.2.1",
+        "mongodb": "^7.0.0"
+    }
+}
