@@ -1,3 +1,4 @@
+import http from 'http'
 import path from 'path'
 import express from 'express'
 import cookieParser from 'cookie-parser'
@@ -6,8 +7,10 @@ import { logger } from './services/logger.service.js'
 import { stayRoutes } from './api/stay/stay.route.js'
 import { userRoutes } from './api/user/user.routes.js'
 import { authRoutes } from './api/auth/auth.routes.js'
+import { socketService } from './services/socket.service.js'
 
 const app = express()
+const server = http.createServer(app)
 
 // Express Config
 app.use(express.static('public'))
@@ -31,6 +34,15 @@ app.use('/api/stay', stayRoutes)
 app.use('/api/user', userRoutes)
 app.use('/api/auth', authRoutes)
 
+// Temporary Dummy Order Route (To silence frontend errors)
+app.get('/api/order', (req, res) => {
+    res.send([])
+})
+
+// Setup Socket API
+setupSocketAPI(server)
+
+
 // Fallback route
 app.get('/*all', (req, res) => {
     res.sendFile(path.resolve('public/index.html'))
@@ -38,6 +50,10 @@ app.get('/*all', (req, res) => {
 
 
 const port = process.env.PORT || 3030
-app.listen(port, () => {
+server.listen(port, () => {
     logger.info(`Server is running on port: http://127.0.0.1:${port}`)
 })
+
+function setupSocketAPI(server) {
+    socketService.setupSocketAPI(server)
+}

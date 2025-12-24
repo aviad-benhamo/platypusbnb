@@ -17,6 +17,7 @@
         "cryptr": "^6.4.0",
         "dotenv": "^17.2.3",
         "express": "^5.2.1",
-        "mongodb": "^7.0.0"
+        "mongodb": "^7.0.0",
+        "socket.io": "^4.8.3"
     }
 }
