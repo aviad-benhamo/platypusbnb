@@ -1,13 +1,12 @@
 {
-    "name": "mistertoy-backend",
+    "name": "platypusbnb-project",
     "version": "1.0.0",
-    "description": "mister toy project",
+    "description": "platypusbnb-backend",
     "main": "server.js",
     "type": "module",
     "scripts": {
-        "start": "nodemon --ignore \"./data\" server.js",
-        "server:dev": "nodemon server.js",
-        "server:prod": "set NODE_ENV=production&&node server.js"
+        "start": "node server.js",
+        "dev": "nodemon --ignore \"./data\" server.js"
     },
     "author": "Aviad Ben Hamo",
     "license": "ISC",
