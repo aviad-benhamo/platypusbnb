@@ -1,5 +1,7 @@
 import { stayService } from './stay.service.js'
 import { logger } from '../../services/logger.service.js'
+import { authService } from '../auth/auth.service.js'
+import { userService } from '../user/user.service.js'
 
 export async function getStays(req, res) {
     try {
@@ -14,6 +16,35 @@ export async function getStays(req, res) {
             sortBy: req.query.sortBy || ''
         }
 
+        if (req.query.wishlist === 'true') {
+            let loggedinUser = req.loggedinUser
+
+            if (!loggedinUser && req.cookies && req.cookies.loginToken) {
+                try {
+                    loggedinUser = authService.validateToken(req.cookies.loginToken)
+                } catch (err) {
+                    logger.error('Failed to validate token in wishlist request', err)
+                }
+            }
+
+            if (!loggedinUser) {
+                return res.json([])
+            }
+
+            try {
+                const freshUser = await userService.getById(loggedinUser._id)
+
+                if (!freshUser || !freshUser.wishlist || freshUser.wishlist.length === 0) {
+                    return res.json([])
+                }
+                filterBy.ids = freshUser.wishlist
+
+            } catch (err) {
+                logger.error('Failed to load fresh user data for wishlist', err)
+                return res.status(500).send({ err: 'Failed to load wishlist' })
+            }
+        }
+
         const stays = await stayService.query(filterBy)
         res.json(stays)
     } catch (err) {
@@ -21,6 +52,7 @@ export async function getStays(req, res) {
         res.status(500).send({ err: 'Failed to get stays' })
     }
 }
+
 
 export async function getStayById(req, res) {
     try {

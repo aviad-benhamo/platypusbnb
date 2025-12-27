@@ -16,9 +16,9 @@ async function query(filterBy = {}) {
     try {
         const criteria = _buildCriteria(filterBy)
         const sortCriteria = _buildSortCriteria(filterBy)
-
         const collection = await dbService.getCollection('stay')
         var stays = await collection.find(criteria).sort(sortCriteria).toArray()
+
         return stays
     } catch (err) {
         logger.error('cannot find stays', err)
@@ -29,7 +29,10 @@ async function query(filterBy = {}) {
 async function getById(stayId) {
     try {
         const collection = await dbService.getCollection('stay')
-        const stay = await collection.findOne({ _id: _toObjectId(stayId) })
+        let stay = await collection.findOne({ _id: _toObjectId(stayId) })
+        if (!stay) {
+            stay = await collection.findOne({ _id: stayId })
+        }
         return stay
     } catch (err) {
         logger.error(`while finding stay ${stayId}`, err)
@@ -52,7 +55,15 @@ async function save(stay) {
         const collection = await dbService.getCollection('stay')
         if (stay._id) {
             const { _id, ...stayToSave } = stay
-            await collection.updateOne({ _id: _toObjectId(_id) }, { $set: stayToSave })
+            const idToSearch = ObjectId.isValid(_id) ? _toObjectId(_id) : _id
+
+            let result = await collection.updateOne({ _id: idToSearch }, { $set: stayToSave })
+
+            if (result.matchedCount === 0 && ObjectId.isValid(_id)) {
+                const fallbackId = (typeof idToSearch === 'string') ? new ObjectId(_id) : _id
+                await collection.updateOne({ _id: fallbackId }, { $set: stayToSave })
+            }
+
             return stay
         } else {
             stay.createdAt = Date.now()
@@ -92,7 +103,6 @@ async function removeStayMsg(stayId, msgId) {
 
 // --- Private Helper Functions ---
 
-// Creates an ObjectId if the id is valid, otherwise returns the string id
 function _toObjectId(id) {
     return ObjectId.isValid(id) ? new ObjectId(id) : id
 }
@@ -119,6 +129,17 @@ function _buildCriteria(filterBy) {
         } else {
             criteria['loc.city'] = { $regex: cityRegex }
         }
+    }
+
+    if (filterBy.ids && filterBy.ids.length > 0) {
+        const idsToSearch = filterBy.ids.flatMap(id => {
+            const variants = [id]
+            if (ObjectId.isValid(id)) {
+                variants.push(new ObjectId(id))
+            }
+            return variants
+        })
+        criteria._id = { $in: idsToSearch }
     }
 
     if (filterBy.guests) {
