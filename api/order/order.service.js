@@ -51,6 +51,7 @@ async function save(order) {
             await collection.updateOne({ _id: _toObjectId(_id) }, { $set: orderToSave })
             return order
         } else {
+            delete order._id
             order.createdAt = Date.now()
             // Ensure status is pending if not provided
             if (!order.status) order.status = 'pending'
