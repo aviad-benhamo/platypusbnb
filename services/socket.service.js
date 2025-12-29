@@ -38,21 +38,28 @@ export function setupSocketAPI(http) {
         socket.on('set-user-socket', userId => {
             logger.info(`Setting socket.userId = ${userId} for socket [id: ${socket.id}]`)
             socket.userId = userId
+
+            if (userId) {
+                socket.join(userId)
+            }
         })
 
         // Handle user logout
         socket.on('unset-user-socket', () => {
             logger.info(`Removing socket.userId for socket [id: ${socket.id}]`)
+            if (socket.userId) {
+                socket.leave(socket.userId)
+            }
             delete socket.userId
         })
-
-        // User watch (e.g. for order updates)
-        socket.on('user-watch', userId => {
-            logger.info(`user-watch ${userId} by socket [id: ${socket.id}]`)
-            socket.join('watching:' + userId)
-        })
-
     })
+
+    // User watch (e.g. for order updates)
+    socket.on('user-watch', userId => {
+        logger.info(`user-watch ${userId} by socket [id: ${socket.id}]`)
+        socket.join('watching:' + userId)
+    })
+
 }
 
 // Emits to all sockets or specific room (label)
@@ -65,14 +72,8 @@ function emitTo({ type, data, label }) {
 // Emits to a specific user (if connected)
 async function emitToUser({ type, data, userId }) {
     userId = userId.toString()
-    const socket = await _getUserSocket(userId)
-
-    if (socket) {
-        logger.info(`Emiting to user ${userId}: ${type} data: ${JSON.stringify(data)}`)
-        socket.emit(type, data)
-    } else {
-        logger.info(`No active socket for user: ${userId}`)
-    }
+    logger.info(`Emiting to user ${userId}: ${type}`)
+    gIo.to(userId).emit(type, data)
 }
 
 // Can be used to broadcast to all users
