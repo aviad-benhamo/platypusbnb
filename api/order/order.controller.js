@@ -62,8 +62,19 @@ export async function addOrder(req, res) {
 export async function updateOrder(req, res) {
     try {
         const order = req.body
-        const updatedOrder = await orderService.save(order)
-        res.json(updatedOrder)
+        await orderService.save(order)
+
+        const fullUpdatedOrder = await orderService.getById(order._id)
+
+        if (fullUpdatedOrder.guest && fullUpdatedOrder.guest._id) {
+            socketService.emitToUser({
+                type: 'order-status-updated',
+                data: fullUpdatedOrder,
+                userId: fullUpdatedOrder.guest._id
+            })
+        }
+
+        res.json(fullUpdatedOrder)
     } catch (err) {
         logger.error('Failed to update order', err)
         res.status(500).send({ err: 'Failed to update order' })
