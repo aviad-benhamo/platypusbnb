@@ -51,16 +51,18 @@ export function setupSocketAPI(http) {
                 socket.leave(socket.userId)
             }
             delete socket.userId
+
+        })
+
+        // User watch (e.g. for order updates)
+        socket.on('user-watch', userId => {
+            logger.info(`user-watch ${userId} by socket [id: ${socket.id}]`)
+            socket.join('watching:' + userId)
         })
     })
-
-    // User watch (e.g. for order updates)
-    socket.on('user-watch', userId => {
-        logger.info(`user-watch ${userId} by socket [id: ${socket.id}]`)
-        socket.join('watching:' + userId)
-    })
-
 }
+
+
 
 // Emits to all sockets or specific room (label)
 // Example usage: socketService.emitTo({ type: 'review-added', data: review, label: stayId })

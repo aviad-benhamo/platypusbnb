@@ -1,5 +1,6 @@
 import { orderService } from './order.service.js'
 import { logger } from '../../services/logger.service.js'
+import { socketService } from '../../services/socket.service.js'
 
 export async function getOrders(req, res) {
     try {
@@ -37,6 +38,16 @@ export async function addOrder(req, res) {
         order.guest = { _id: loggedinUser._id, fullname: loggedinUser.fullname, imgUrl: loggedinUser.imgUrl }
 
         const addedOrder = await orderService.save(order)
+
+        // --- Socket Notification: Notify the Host ---
+        if (addedOrder.hostId && addedOrder.hostId._id) {
+            socketService.emitToUser({
+                type: 'order-added',
+                data: addedOrder,
+                userId: addedOrder.hostId._id
+            })
+        }
+
         res.json(addedOrder)
     } catch (err) {
         logger.error('Failed to add order', err)
