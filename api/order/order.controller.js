@@ -35,7 +35,11 @@ export async function addOrder(req, res) {
     try {
         const order = req.body
         // Security: Ensure the guest making the order is the logged-in user
-        order.guest = { _id: loggedinUser._id, fullname: loggedinUser.fullname, imgUrl: loggedinUser.imgUrl }
+        order.guest = {
+            _id: loggedinUser._id,
+            fullname: loggedinUser.fullname,
+            imgUrl: order.guest?.imgUrl || loggedinUser.imgUrl
+        }
 
         const addedOrder = await orderService.save(order)
 
